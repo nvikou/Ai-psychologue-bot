@@ -1,0 +1,18 @@
+# Variables d'environnement (contient des clés API sensibles)
+.env
+
+# Logs
+*.log
+
+# Cache Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Environnements virtuels
+venv/
+.venv/
+env/
+
+# Docker
+.dockerignore
