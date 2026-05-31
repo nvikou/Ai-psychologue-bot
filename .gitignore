@@ -14,5 +14,3 @@ venv/
 .venv/
 env/
 
-# Docker
-.dockerignore

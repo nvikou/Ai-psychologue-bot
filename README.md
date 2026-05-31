@@ -1,16 +1,20 @@
-# 🧠 Bot Psychologue Telegram
+# Bot Psychologue Telegram
 
-Un bot Telegram qui joue le rôle du **Dr. Émile**, psychologue clinicien virtuel. Il aide les utilisateurs à comprendre et gérer leurs émotions grâce à l'IA.
+Bot Telegram bienveillant inspiré du **Dr. Émile**, assistant
+conversationnel pour explorer ses émotions — avec garde-fous de
+sécurité et limites claires (ce n'est pas un professionnel de santé).
 
 ---
 
 ## Fonctionnalités
 
-- Conversation continue avec mémoire de l'historique par utilisateur
-- Personnalité fixe : Dr. Émile, psychologue avec 20 ans d'expérience
-- Bouton inline pour effacer l'historique de conversation
-- Commande `/start` pour démarrer une session
-- Logs automatiques dans `bot.log`
+- Conversation continue avec mémoire par utilisateur (limitée)
+- Disclaimer et commande `/help` avec numéros d'urgence
+- Détection de messages de crise avec orientation vers l'aide
+- Rate limiting anti-spam par utilisateur
+- Bouton inline pour effacer l'historique
+- Gestion d'erreurs API OpenAI
+- Logs sans contenu des messages utilisateurs
 
 ---
 
@@ -29,31 +33,31 @@ Un bot Telegram qui joue le rôle du **Dr. Émile**, psychologue clinicien virtu
 
 ### Prérequis
 
-- Python 3.12+
-- Docker & Docker Compose
-- Un token bot Telegram (via [@BotFather](https://t.me/BotFather))
-- Une clé API OpenAI
+- Python 3.12+ ou Docker & Docker Compose
+- Token bot Telegram ([@BotFather](https://t.me/BotFather))
+- Clé API OpenAI
 
+### Variables d'environnement
 
+```bash
+cp .env.example .env
+```
 
-### Configurer les variables d'environnement
-
-Créer un fichier `.env` à la racine :
+Renseigner dans `.env` :
 
 ```env
 TELEGRAM_TOKEN=votre_token_telegram
 OPENAI_API_KEY=votre_cle_openai
 ```
 
-
-
-### 3. Lancer avec Docker
+### Lancer avec Docker
 
 ```bash
-docker-compose up -d
+docker compose up -d --build
+docker compose logs -f bot
 ```
 
-### 3. Lancer sans Docker
+### Lancer sans Docker
 
 ```bash
 pip install -r requirements.txt
@@ -65,21 +69,37 @@ python bot.py
 ## Structure du projet
 
 ```
-├── bot.py              # Point d'entrée, démarrage du bot
-├── handlers.py         # Logique des commandes et callbacks Telegram
-├── libs.py             # Appel à l'API OpenAI
-├── requirements.txt    # Dépendances Python
-├── Dockerfile          # Image Docker
-├── docker-compose.yml  # Configuration Docker Compose
-├── .env                # Variables sensibles (non versionné)
+├── bot.py              # Point d'entrée
+├── config.py           # Configuration et constantes
+├── handlers.py         # Handlers Telegram
+├── libs.py             # Client OpenAI
+├── memory.py           # Mémoire conversationnelle
+├── requirements.txt
+├── Dockerfile
+├── docker-compose.yml
+├── .env.example
 └── .gitignore
 ```
 
 ---
 
-## Utilisation
+## Commandes
 
 | Commande | Description |
 |----------|-------------|
-| `/start` | Démarre une nouvelle conversation |
-| 🗑️ *Effacer l'historique* | Bouton inline pour réinitialiser la mémoire |
+| `/start` | Nouvelle session + avertissement |
+| `/help` | Rappel des limites et numéros d'urgence |
+| 🗑️ *Effacer l'historique* | Réinitialise la mémoire |
+
+---
+
+## Sécurité
+
+- Les clés API ne sont jamais versionnées (`.env` ignoré par git)
+- Les messages utilisateurs ne sont pas loggés en clair
+- Limite de longueur des messages et de l'historique
+- Détection basique de détresse grave avec ressources d'urgence
+
+**Important :** ce bot ne remplace pas un professionnel de santé
+mentale. En cas d'urgence, contactez le **15**, le **112** ou le
+**3114** (France).

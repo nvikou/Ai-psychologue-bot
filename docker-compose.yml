@@ -1,14 +1,13 @@
 ﻿services:
   bot:
     build:
-      context: . # где находится Dockerfile
-      dockerfile: Dockerfile # Явно указываем Dockerfile
+      context: .
+      dockerfile: Dockerfile
     image: bot_psychologue:v1
     container_name: bot_psychologue
     env_file:
       - .env
     environment:
-      - PYTHONUNBUFFERED=1 # Для отображения логов в реальном времени
-    volumes:
-      - "C:/Users/nviko/Desktop/toto/tg bot/Psychologue bot:/app"
+      - PYTHONUNBUFFERED=1
+      - LOG_FILE=
     restart: unless-stopped

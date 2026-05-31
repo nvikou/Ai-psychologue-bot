@@ -1,87 +1,137 @@
-from aiogram.types import Message, BotCommand, CallbackQuery
-from aiogram import Bot, Router, F
-from aiogram.filters import Command
-from aiogram.types import InlineKeyboardMarkup
-from aiogram.types import InlineKeyboardButton as IKB
-from libs import get_answer
+"""Handlers Telegram du bot psychologue."""
+
 import logging
-import os
-from dotenv import load_dotenv
-load_dotenv()
 
+from aiogram import Bot
+from aiogram import F
+from aiogram import Router
+from aiogram.filters import Command
+from aiogram.types import BotCommand
+from aiogram.types import CallbackQuery
+from aiogram.types import InlineKeyboardButton
+from aiogram.types import InlineKeyboardMarkup
+from aiogram.types import Message
 
-# Промпт: психология эмоций
-SYSTEM_PROMPT = f"""You are Dr. Émile, an expert clinical psychologist with 20 years of experience \.
-Chat with the user \. Help the user understand and manage their emotions \.
-"""
+from config import CRISIS_KEYWORDS
+from config import CRISIS_RESPONSE
+from config import DISCLAIMER
+from config import ERROR_GENERIC
+from config import ERROR_MESSAGE_TOO_LONG
+from config import ERROR_OPENAI
+from config import ERROR_RATE_LIMIT
+from config import MAX_MESSAGE_LENGTH
+from libs import AIServiceError
+from libs import get_answer
+from memory import ConversationStore
+
+logger = logging.getLogger(__name__)
 
 router = Router()
-dict_memory = dict()  # Словарь для сохранения истории переписки
+store = ConversationStore()
 
 
-# Inline кнопка для очистки истории переписки
-def kb_clear_memory():
+def _kb_clear_memory() -> InlineKeyboardMarkup:
+    """Clavier inline pour effacer l'historique."""
     return InlineKeyboardMarkup(
-        inline_keyboard=[[IKB(text="🗑️ Effacer l'historique",
-                              callback_data="clear_memory")]])
-
-
-# Функция очистки истории переписки по id пользователя
-async def clear_memory(tg_id):
-    try:
-        global dict_memory
-        dict_memory[tg_id] = ''
-        mem = dict_memory[tg_id]
-        logging.info(f'Очистка истории переписки ({tg_id}) {mem}')
-    except:
-        logging.error('clear_memory()')
-
-
-# Обработка нажатия на кнопку - очистка истории переписки
-@router.callback_query(F.data == "clear_memory")
-async def handle_clear_callback(callback: CallbackQuery):
-    await clear_memory(callback.from_user.id)
-    # await callback.message.edit_reply_markup(reply_markup=None) # удаление кнопки после нажатия
-    # удаление кнопки с текстом над кнопкой (последнее сообщение)
-    await callback.message.delete()
-
-
-# Меню бота
-@router.startup()
-async def set_menu_button(bot: Bot):
-    main_menu_commands = [
-        BotCommand(command='/start', description='Start')]
-    await bot.set_my_commands(main_menu_commands)
-
-
-# Обработка команды /start
-@router.message(Command('start'))
-async def cmd_start(message: Message):
-    await clear_memory(message.from_user.id)
-    await message.answer(
-        " Bonjour mon ami, je suis un psychologue expérimenté. En quoi t'aider? 🧠"
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="🗑️ Clear history",
+                    callback_data="clear_memory",
+                )
+            ]
+        ]
     )
 
 
-# Обработка текстового сообщения от пользователя
-@router.message(F.text)
-async def handle_dialog(message: Message):
-    logging.info(
-        f"handle_dialog() - Запрос от {message.from_user.id}: {message.text}")
-    global dict_memory
-    if message.from_user.id not in dict_memory:
-        dict_memory[message.from_user.id] = ''
-    history = dict_memory.get(message.from_user.id, '')
+def _is_crisis_message(text: str) -> bool:
+    """Détecte les mots-clés de détresse grave."""
+    lowered = text.lower()
+    return any(keyword in lowered for keyword in CRISIS_KEYWORDS)
 
-    # Запрос к OpenAI
-    response = await get_answer(SYSTEM_PROMPT, history, message.text)
+
+@router.startup()
+async def set_menu_button(bot: Bot) -> None:
+    """Configure le menu des commandes du bot."""
+    commands = [
+        BotCommand(command="start", description="Start"),
+        BotCommand(command="help", description="Help and disclaimer"),
+    ]
+    await bot.set_my_commands(commands)
+
+
+@router.message(Command("start"))
+async def cmd_start(message: Message) -> None:
+    """Commande /start : reset mémoire et disclaimer."""
+    user_id = message.from_user.id
+    await store.clear(user_id)
+    await message.answer(DISCLAIMER, parse_mode="Markdown")
+
+
+@router.message(Command("help"))
+async def cmd_help(message: Message) -> None:
+    """Commande /help : rappel des limites du bot."""
+    await message.answer(DISCLAIMER, parse_mode="Markdown")
+
+
+@router.callback_query(F.data == "clear_memory")
+async def handle_clear_callback(callback: CallbackQuery) -> None:
+    """Efface l'historique via le bouton inline."""
+    user_id = callback.from_user.id
+    await store.clear(user_id)
+    await callback.answer("History cleared.")
+    if callback.message:
+        await callback.message.delete()
+
+
+@router.message(F.text)
+async def handle_dialog(message: Message, bot: Bot) -> None:
+    """Traite un message texte de l'utilisateur."""
+    user_id = message.from_user.id
+    text = message.text.strip() if message.text else ""
+
+    logger.info("Message reçu de user_id=%s (len=%s)", user_id, len(text))
+
+    if not text:
+        return
+
+    if len(text) > MAX_MESSAGE_LENGTH:
+        await message.answer(ERROR_MESSAGE_TOO_LONG)
+        return
+
+    if not await store.check_rate_limit(user_id):
+        await message.answer(ERROR_RATE_LIMIT)
+        return
+
+    if _is_crisis_message(text):
+        logger.warning(
+            "Message de crise détecté pour user_id=%s",
+            user_id,
+        )
+        await message.answer(CRISIS_RESPONSE, parse_mode="Markdown")
+        return
+
+    await bot.send_chat_action(message.chat.id, "typing")
+
+    history = await store.get_history(user_id)
+
+    try:
+        response = await get_answer(history, text)
+    except AIServiceError:
+        await message.answer(ERROR_OPENAI)
+        return
+    except Exception:
+        logger.exception(
+            "Erreur inattendue pour user_id=%s",
+            user_id,
+        )
+        await message.answer(ERROR_GENERIC)
+        return
 
     await message.answer(response)
-    await message.answer("Posez votre prochaine question ou effacez la mémoire :",
-                         reply_markup=kb_clear_memory())
-
-    logging.info(
-        f"handle_dialog - Ответ: {message.from_user.id} отправлен")
-    # запись диалога в историю
-    dict_memory[message.from_user.id] += \
-        f"\n\nЗапрос пользователя: {message.text}\n\nОтвет: \n{response}"
+    await message.answer(
+        "Ask your next question or clear the memory:",
+        reply_markup=_kb_clear_memory(),
+    )
+    await store.append_exchange(user_id, text, response)
+    logger.info("Réponse envoyée à user_id=%s", user_id)

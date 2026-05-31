@@ -1,16 +1,18 @@
-﻿# базовый образ
-FROM python:3.12-slim
+﻿FROM python:3.12-slim
 
-# рабочая директория
 WORKDIR /app
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+RUN addgroup --system app && adduser --system --ingroup app app
+
 COPY requirements.txt ./
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-RUN pip install --upgrade pip
-RUN pip install --no-cache-dir -r requirements.txt
+COPY config.py handlers.py libs.py memory.py bot.py ./
 
-# копируем проект
-COPY . .
+USER app
 
-# запуск бота
 CMD ["python", "bot.py"]

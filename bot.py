@@ -1,29 +1,66 @@
-import logging
+"""Point d'entrée du bot Telegram."""
+
 import asyncio
-from aiogram import Bot, Dispatcher
+import logging
 import os
-from dotenv import load_dotenv
+import sys
+
+from aiogram import Bot
+from aiogram import Dispatcher
+
 import handlers
+from config import LOG_LEVEL
+from config import TELEGRAM_TOKEN
+from config import validate_config
 
 
-# Логирование
-logging.basicConfig(level=logging.INFO,
-                    format='%(asctime)s - %(levelname)s - %(message)s',
-                    handlers=[logging.FileHandler('bot.log'),
-                              logging.StreamHandler()])
+def _setup_logging() -> None:
+    """Configure le logging applicatif."""
+    level = getattr(logging, LOG_LEVEL, logging.INFO)
+    handlers_list: list[logging.Handler] = [
+        logging.StreamHandler(sys.stdout),
+    ]
+    log_file = os.getenv("LOG_FILE", "bot.log")
+    if log_file:
+        try:
+            handlers_list.append(
+                logging.FileHandler(log_file, encoding="utf-8")
+            )
+        except (OSError, PermissionError):
+            logging.basicConfig(level=level, force=True)
+            logging.warning(
+                "Impossible d'écrire dans %s, logs stdout uniquement",
+                log_file,
+            )
+            logging.getLogger("httpx").setLevel(logging.WARNING)
+            logging.getLogger("openai").setLevel(logging.WARNING)
+            return
 
-load_dotenv()
-bot = Bot(token=os.getenv('TELEGRAM_TOKEN'))
-dp = Dispatcher()
-dp.include_routers(handlers.router,)
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=handlers_list,
+        force=True,
+    )
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("openai").setLevel(logging.WARNING)
 
 
-async def main():
+async def main() -> None:
+    """Démarre le polling Telegram."""
+    validate_config()
+    _setup_logging()
+    logger = logging.getLogger(__name__)
+
+    bot = Bot(token=TELEGRAM_TOKEN)
+    dp = Dispatcher()
+    dp.include_router(handlers.router)
+
     try:
-        logging.info("Запуск бота...")
+        logger.info("Démarrage du bot...")
         await dp.start_polling(bot)
     finally:
-        logging.info("Остановка бота...")
+        logger.info("Arrêt du bot...")
         await bot.session.close()
 
 
