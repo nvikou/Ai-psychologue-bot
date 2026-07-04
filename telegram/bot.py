@@ -15,26 +15,18 @@ from config import validate_config
 
 
 def _setup_logging() -> None:
-    """Configure le logging applicatif."""
     level = getattr(logging, LOG_LEVEL, logging.INFO)
     handlers_list: list[logging.Handler] = [
         logging.StreamHandler(sys.stdout),
     ]
-    log_file = os.getenv("LOG_FILE", "bot.log")
+    log_file = os.getenv("LOG_FILE", "")
     if log_file:
         try:
             handlers_list.append(
                 logging.FileHandler(log_file, encoding="utf-8")
             )
         except (OSError, PermissionError):
-            logging.basicConfig(level=level, force=True)
-            logging.warning(
-                "Impossible d'écrire dans %s, logs stdout uniquement",
-                log_file,
-            )
-            logging.getLogger("httpx").setLevel(logging.WARNING)
-            logging.getLogger("openai").setLevel(logging.WARNING)
-            return
+            pass
 
     logging.basicConfig(
         level=level,
@@ -42,12 +34,9 @@ def _setup_logging() -> None:
         handlers=handlers_list,
         force=True,
     )
-    logging.getLogger("httpx").setLevel(logging.WARNING)
-    logging.getLogger("openai").setLevel(logging.WARNING)
 
 
 async def main() -> None:
-    """Démarre le polling Telegram."""
     validate_config()
     _setup_logging()
     logger = logging.getLogger(__name__)
@@ -57,10 +46,10 @@ async def main() -> None:
     dp.include_router(handlers.router)
 
     try:
-        logger.info("Démarrage du bot...")
+        logger.info("Telegram bot starting...")
         await dp.start_polling(bot)
     finally:
-        logger.info("Arrêt du bot...")
+        logger.info("Telegram bot stopped")
         await bot.session.close()
 
 

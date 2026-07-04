@@ -1,13 +1,67 @@
 ﻿services:
-  bot:
+  postgres:
+    image: postgres:16-alpine
+    container_name: psychologue_postgres
+    environment:
+      POSTGRES_USER: psychologue
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-psychologue}
+      POSTGRES_DB: psychologue
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U psychologue"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: psychologue_redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
     build:
-      context: .
+      context: ./backend
       dockerfile: Dockerfile
-    image: bot_psychologue:v1
-    container_name: bot_psychologue
+    container_name: psychologue_api
     env_file:
       - .env
     environment:
       - PYTHONUNBUFFERED=1
-      - LOG_FILE=
+      - DATABASE_URL=postgresql+asyncpg://psychologue:${POSTGRES_PASSWORD:-psychologue}@postgres:5432/psychologue
+      - REDIS_URL=redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     restart: unless-stopped
+
+  bot:
+    build:
+      context: ./telegram
+      dockerfile: Dockerfile
+    container_name: psychologue_bot
+    env_file:
+      - .env
+    environment:
+      - PYTHONUNBUFFERED=1
+      - BACKEND_URL=http://api:8000
+      - LOG_FILE=
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  postgres_data:

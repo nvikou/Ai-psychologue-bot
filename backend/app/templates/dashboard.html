@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Émile — Admin Dashboard</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 2rem;
+        }
+        h1 { margin-bottom: 0.5rem; color: #f8fafc; }
+        .subtitle { color: #94a3b8; margin-bottom: 2rem; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .card {
+            background: #1e293b;
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid #334155;
+        }
+        .card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #38bdf8;
+        }
+        .card .label { color: #94a3b8; font-size: 0.875rem; }
+        section { margin-bottom: 2rem; }
+        h2 {
+            margin-bottom: 1rem;
+            font-size: 1.125rem;
+            color: #cbd5e1;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #1e293b;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid #334155;
+        }
+        th { background: #334155; color: #94a3b8; font-size: 0.8rem; }
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            background: #334155;
+        }
+        .badge.premium { background: #713f12; color: #fde68a; }
+        .badge.crisis { background: #7f1d1d; color: #fecaca; }
+    </style>
+</head>
+<body>
+    <h1>🧠 Dr. Émile Admin</h1>
+    <p class="subtitle">Backend dashboard — live stats</p>
+
+    <div class="grid">
+        <div class="card">
+            <div class="value">{{ stats.total_users }}</div>
+            <div class="label">Total users</div>
+        </div>
+        <div class="card">
+            <div class="value">{{ stats.active_today }}</div>
+            <div class="label">Active today</div>
+        </div>
+        <div class="card">
+            <div class="value">{{ stats.total_messages }}</div>
+            <div class="label">Total messages</div>
+        </div>
+        <div class="card">
+            <div class="value">{{ stats.messages_today }}</div>
+            <div class="label">Messages today</div>
+        </div>
+        <div class="card">
+            <div class="value">{{ stats.crisis_events_today }}</div>
+            <div class="label">Crisis events today</div>
+        </div>
+    </div>
+
+    <section>
+        <h2>Users by plan</h2>
+        <div class="grid">
+            {% for plan, count in stats.users_by_plan.items() %}
+            <div class="card">
+                <div class="value">{{ count }}</div>
+                <div class="label">{{ plan }}</div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section>
+        <h2>Recent users</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>External ID</th>
+                    <th>Channel</th>
+                    <th>Plan</th>
+                    <th>Messages</th>
+                    <th>Last active</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.id }}</td>
+                    <td>{{ u.external_id }}</td>
+                    <td>{{ u.channel }}</td>
+                    <td>
+                        <span class="badge {% if u.plan.value == 'premium' %}premium{% endif %}">
+                            {{ u.plan.value }}
+                        </span>
+                    </td>
+                    <td>{{ u.message_count }}</td>
+                    <td>{{ u.last_active_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+
+    <section>
+        <h2>Recent events</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Type</th>
+                    <th>Channel</th>
+                    <th>Details</th>
+                    <th>Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for e in events %}
+                <tr>
+                    <td>
+                        <span class="badge {% if e.event_type == 'crisis_detected' %}crisis{% endif %}">
+                            {{ e.event_type }}
+                        </span>
+                    </td>
+                    <td>{{ e.channel or '—' }}</td>
+                    <td>{{ e.details or '—' }}</td>
+                    <td>{{ e.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</body>
+</html>
