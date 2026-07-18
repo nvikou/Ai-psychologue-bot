@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Privacy Policy — Dr. Émile</title>
+    <style>
+        body { font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0; max-width:800px; margin:2rem auto; padding:0 1rem; line-height:1.6; }
+        a { color:#38bdf8; }
+    </style>
+</head>
+<body>
+    <h1>Privacy Policy</h1>
+    <p><a href="/">← Back</a></p>
+    <p>Dr. Émile is an AI conversational assistant. It is <strong>not</strong> a licensed
+    healthcare provider.</p>
+    <h2>Data we store</h2>
+    <ul>
+        <li>Account identifiers (Telegram / web session IDs)</li>
+        <li>Optional profile fields (language, goals, timezone)</li>
+        <li>Conversation messages (encrypted at rest when configured)</li>
+        <li>Technical event logs (without message content in app logs)</li>
+    </ul>
+    <h2>Retention</h2>
+    <p>Messages older than <strong>{{ retention_days }} days</strong> may be purged
+    automatically (GDPR retention policy).</p>
+    <h2>Your rights</h2>
+    <ul>
+        <li>Export your data via <code>POST /api/v1/chat/gdpr/export</code></li>
+        <li>Delete your account via <code>POST /api/v1/chat/gdpr/delete</code></li>
+        <li>Clear conversation history at any time</li>
+    </ul>
+    <h2>Emergency</h2>
+    <p>If you are in crisis, contact local emergency services (911 / 999 / 112 / 988 / 3114).</p>
+</body>
+</html>

@@ -27,6 +27,7 @@ async def send_chat(
     message: str,
     username: str | None = None,
     first_name: str | None = None,
+    language: str | None = None,
 ) -> dict:
     """Envoie un message au backend."""
     payload = {
@@ -35,6 +36,7 @@ async def send_chat(
         "message": message,
         "username": username,
         "first_name": first_name,
+        "language": language,
     }
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:

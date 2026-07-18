@@ -27,13 +27,31 @@ class Settings(BaseSettings):
 
     backend_api_key: str = Field(default="", alias="BACKEND_API_KEY")
     admin_api_key: str = Field(default="", alias="ADMIN_API_KEY")
+    admin_jwt_secret: str = Field(
+        default="change-me-admin-jwt-secret",
+        alias="ADMIN_JWT_SECRET",
+    )
+    encryption_key: str = Field(default="", alias="ENCRYPTION_KEY")
 
     max_message_length: int = 2000
     max_history_messages: int = 20
     rate_limit_seconds: float = 2.0
+    ip_rate_limit_per_minute: int = 60
 
     free_daily_quota: int = 30
     premium_daily_quota: int = 500
+
+    message_retention_days: int = 90
+    default_language: str = "en"
+    cors_origins: str = "*"
+
+    sentry_dsn: str = ""
+    crisis_webhook_url: str = ""
+    public_base_url: str = "http://localhost:8000"
+    telegram_bot_username: str = Field(
+        default="ai_psychologueBot",
+        alias="TELEGRAM_BOT_USERNAME",
+    )
 
     log_level: str = "INFO"
 
@@ -54,8 +72,9 @@ HOW YOU CONVERSE (like a real psychologist):
 or "What do you think is behind that feeling?"
 - Help them name emotions, notice patterns, and see new perspectives.
 - Offer practical coping suggestions only when they fit the moment.
-- Keep replies natural and warm: 2–4 short paragraphs, clear English, \
+- Keep replies natural and warm: 2–4 short paragraphs, clear prose, \
 no jargon unless you explain it simply.
+- Always reply in the user's preferred language when specified.
 
 SESSION FLOW:
 - Acknowledge what they shared.
@@ -89,6 +108,9 @@ respect."""
         "hurt myself",
         "overdose",
         "no reason to live",
+        "me suicider",
+        "envie de mourir",
+        "me tuer",
     )
 
     crisis_response: str = (
@@ -100,7 +122,8 @@ respect."""
         "• *988* — Suicide & Crisis Lifeline (US, 24/7)\n"
         "• *911* — Emergency services (US)\n"
         "• *999* — Emergency services (UK)\n"
-        "• *112* — European emergency number\n\n"
+        "• *112* — European emergency number\n"
+        "• *3114* — Suicide prevention (France, 24/7)\n\n"
         "You are not alone. Trained professionals are available now."
     )
 

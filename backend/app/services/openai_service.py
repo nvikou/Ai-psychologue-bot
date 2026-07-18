@@ -10,6 +10,7 @@ from openai import APITimeoutError
 from openai import RateLimitError
 
 from app.config import settings
+from app.services.i18n_service import language_instruction
 
 logger = logging.getLogger(__name__)
 
@@ -30,10 +31,16 @@ def _get_client() -> AsyncOpenAI:
 async def generate_reply(
     history: list[dict[str, str]],
     query: str,
+    language: str | None = None,
+    goals: str | None = None,
 ) -> str:
     """Génère une réponse via OpenAI."""
+    system = settings.system_prompt + "\n" + language_instruction(language)
+    if goals:
+        system += f"\nUser goals/context: {goals}"
+
     messages: list[dict[str, str]] = [
-        {"role": "system", "content": settings.system_prompt},
+        {"role": "system", "content": system},
     ]
     messages.extend(history)
     messages.append({"role": "user", "content": query})

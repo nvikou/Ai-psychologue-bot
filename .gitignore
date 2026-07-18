@@ -14,3 +14,10 @@ venv/
 .venv/
 env/
 
+# Backups & pytest
+backups/
+.pytest_cache/
+.coverage
+htmlcov/
+
+

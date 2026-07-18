@@ -15,7 +15,12 @@ from app.models import PlanType
 from app.models import User
 from app.schemas import ChatRequest
 from app.schemas import ChatResponse
+from app.services.crisis_notify import notify_crisis
 from app.services.crisis_service import is_crisis_message
+from app.services.encryption_service import decrypt_text
+from app.services.encryption_service import encrypt_text
+from app.services.i18n_service import crisis_text
+from app.services.i18n_service import normalize_language
 from app.services.openai_service import AIServiceError
 from app.services.openai_service import generate_reply
 from app.services.quota_service import QuotaService
@@ -29,6 +34,8 @@ async def log_event(
     channel: str | None = None,
     user_id: int | None = None,
     details: str | None = None,
+    actor: str | None = None,
+    ip_address: str | None = None,
 ) -> None:
     """Enregistre un événement structuré."""
     db.add(
@@ -37,6 +44,8 @@ async def log_event(
             user_id=user_id,
             channel=channel,
             details=details,
+            actor=actor,
+            ip_address=ip_address,
         )
     )
     logger.info(
@@ -53,18 +62,21 @@ async def get_or_create_user(
     channel: str,
     username: str | None = None,
     first_name: str | None = None,
+    language: str | None = None,
 ) -> User:
     """Récupère ou crée un utilisateur."""
     result = await db.execute(
         select(User).where(User.external_id == external_id)
     )
     user = result.scalar_one_or_none()
+    lang = normalize_language(language)
     if user is None:
         user = User(
             external_id=external_id,
             channel=channel,
             username=username,
             first_name=first_name,
+            language=lang,
             plan=PlanType.FREE,
         )
         db.add(user)
@@ -78,6 +90,8 @@ async def get_or_create_user(
     else:
         user.username = username or user.username
         user.first_name = first_name or user.first_name
+        if language:
+            user.language = lang
         user.last_active_at = datetime.now(timezone.utc)
     return user
 
@@ -94,7 +108,13 @@ async def get_history(
         .limit(settings.max_history_messages)
     )
     rows = list(reversed(result.scalars().all()))
-    return [{"role": m.role, "content": m.content} for m in rows]
+    return [
+        {
+            "role": m.role,
+            "content": decrypt_text(m.content, m.is_encrypted),
+        }
+        for m in rows
+    ]
 
 
 async def save_message(
@@ -104,13 +124,15 @@ async def save_message(
     content: str,
     is_crisis: bool = False,
 ) -> None:
-    """Persiste un message."""
+    """Persiste un message (chiffré si configuré)."""
+    stored, encrypted = encrypt_text(content)
     db.add(
         Message(
             user_id=user_id,
             role=role,
-            content=content,
+            content=stored,
             is_crisis=is_crisis,
+            is_encrypted=encrypted,
         )
     )
 
@@ -139,6 +161,32 @@ async def clear_history(
     return True
 
 
+async def update_profile(
+    db: AsyncSession,
+    external_id: str,
+    language: str | None = None,
+    goals: str | None = None,
+    timezone_name: str | None = None,
+    notify_enabled: bool | None = None,
+) -> User | None:
+    """Met à jour le profil utilisateur."""
+    result = await db.execute(
+        select(User).where(User.external_id == external_id)
+    )
+    user = result.scalar_one_or_none()
+    if user is None:
+        return None
+    if language is not None:
+        user.language = normalize_language(language)
+    if goals is not None:
+        user.goals = goals
+    if timezone_name is not None:
+        user.timezone = timezone_name
+    if notify_enabled is not None:
+        user.notify_enabled = notify_enabled
+    return user
+
+
 async def process_chat(
     db: AsyncSession,
     quota: QuotaService,
@@ -158,6 +206,7 @@ async def process_chat(
         payload.channel,
         payload.username,
         payload.first_name,
+        payload.language,
     )
 
     if not await quota.check_rate_limit(payload.external_id):
@@ -188,7 +237,7 @@ async def process_chat(
         )
 
     if is_crisis_message(text):
-        reply = settings.crisis_response
+        reply = crisis_text(user.language)
         await save_message(db, user.id, "user", text, is_crisis=True)
         await save_message(
             db, user.id, "assistant", reply, is_crisis=True
@@ -199,6 +248,11 @@ async def process_chat(
             channel=payload.channel,
             user_id=user.id,
         )
+        await notify_crisis(
+            payload.external_id,
+            payload.channel,
+            user.id,
+        )
         return ChatResponse(
             reply=reply,
             is_crisis=True,
@@ -208,7 +262,12 @@ async def process_chat(
     history = await get_history(db, user.id)
 
     try:
-        reply = await generate_reply(history, text)
+        reply = await generate_reply(
+            history,
+            text,
+            language=user.language,
+            goals=user.goals,
+        )
     except AIServiceError:
         await log_event(
             db,

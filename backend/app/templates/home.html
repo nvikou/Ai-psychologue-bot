@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dr. Émile</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #e2e8f0;
+            --muted: #94a3b8;
+            --accent: #38bdf8;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            min-height: 100vh;
+            display: grid;
+            place-items: center;
+            font-family: Georgia, "Times New Roman", serif;
+            background:
+                radial-gradient(ellipse at top, #1e293b 0%, var(--bg) 55%),
+                var(--bg);
+            color: var(--text);
+            padding: 1.5rem;
+        }
+        .card {
+            width: min(520px, 100%);
+            background: var(--card);
+            border: 1px solid #334155;
+            border-radius: 18px;
+            padding: 2.25rem 2rem;
+            text-align: center;
+        }
+        h1 {
+            margin: 0 0 0.5rem;
+            font-size: 2rem;
+            font-weight: 500;
+        }
+        .hello {
+            color: var(--accent);
+            font-size: 1.05rem;
+            margin-bottom: 1rem;
+        }
+        p {
+            color: var(--muted);
+            line-height: 1.55;
+            margin: 0 0 1.25rem;
+        }
+        .cta {
+            display: inline-block;
+            background: var(--accent);
+            color: #0f172a;
+            text-decoration: none;
+            font-family: system-ui, sans-serif;
+            font-weight: 700;
+            padding: 0.85rem 1.4rem;
+            border-radius: 999px;
+        }
+        .cta:hover { filter: brightness(1.05); }
+        .links {
+            margin-top: 1.5rem;
+            font-family: system-ui, sans-serif;
+            font-size: 0.85rem;
+        }
+        .links a { color: var(--accent); }
+    </style>
+</head>
+<body>
+    <main class="card">
+        <p class="hello">Hello, welcome</p>
+        <h1>Dr. Émile</h1>
+        <p>
+            I'm here to listen and help you explore your emotions —
+            calmly and without judgment.
+        </p>
+        <p>
+            Conversations happen on Telegram.
+            Open the bot to continue.
+        </p>
+        <a class="cta" href="{{ telegram_url }}" target="_blank" rel="noopener">
+            Continue on Telegram → @{{ telegram_username }}
+        </a>
+        <div class="links">
+            <a href="/privacy">Privacy</a> · <a href="/terms">Terms</a>
+        </div>
+    </main>
+</body>
+</html>

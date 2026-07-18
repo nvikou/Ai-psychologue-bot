@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1)
     username: str | None = None
     first_name: str | None = None
+    language: str | None = None
 
 
 class ChatResponse(BaseModel):
@@ -34,6 +35,42 @@ class ClearHistoryRequest(BaseModel):
     channel: str = Field(..., min_length=1, max_length=32)
 
 
+class ProfileUpdate(BaseModel):
+    """Mise à jour du profil utilisateur."""
+
+    external_id: str = Field(..., min_length=1, max_length=128)
+    channel: str = Field(..., min_length=1, max_length=32)
+    language: str | None = None
+    goals: str | None = None
+    timezone: str | None = None
+    notify_enabled: bool | None = None
+    username: str | None = None
+    first_name: str | None = None
+
+
+class ProfileOut(BaseModel):
+    """Profil utilisateur exposé."""
+
+    external_id: str
+    channel: str
+    username: str | None
+    first_name: str | None
+    language: str
+    goals: str | None
+    timezone: str | None
+    notify_enabled: bool
+    plan: PlanType
+
+    model_config = {"from_attributes": True}
+
+
+class GdprRequest(BaseModel):
+    """Requête RGPD (export / suppression)."""
+
+    external_id: str = Field(..., min_length=1, max_length=128)
+    channel: str = Field(..., min_length=1, max_length=32)
+
+
 class UserOut(BaseModel):
     """Utilisateur exposé via API."""
 
@@ -42,6 +79,7 @@ class UserOut(BaseModel):
     channel: str
     username: str | None
     first_name: str | None
+    language: str = "en"
     plan: PlanType
     message_count: int = 0
     created_at: datetime
@@ -78,3 +116,10 @@ class EventOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AdminTokenOut(BaseModel):
+    """Token JWT admin."""
+
+    access_token: str
+    token_type: str = "bearer"

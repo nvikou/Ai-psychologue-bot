@@ -94,6 +94,7 @@ async def list_users(
                 channel=user.channel,
                 username=user.username,
                 first_name=user.first_name,
+                language=user.language or "en",
                 plan=user.plan,
                 message_count=count,
                 created_at=user.created_at,

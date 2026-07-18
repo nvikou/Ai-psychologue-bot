@@ -40,6 +40,13 @@ class User(Base):
     channel: Mapped[str] = mapped_column(String(32), index=True)
     username: Mapped[str | None] = mapped_column(String(128))
     first_name: Mapped[str | None] = mapped_column(String(128))
+    language: Mapped[str] = mapped_column(String(8), default="en")
+    goals: Mapped[str | None] = mapped_column(Text)
+    timezone: Mapped[str | None] = mapped_column(String(64))
+    notify_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=False,
+    )
     plan: Mapped[PlanType] = mapped_column(
         Enum(PlanType),
         default=PlanType.FREE,
@@ -80,6 +87,7 @@ class Message(Base):
     role: Mapped[str] = mapped_column(String(16))
     content: Mapped[str] = mapped_column(Text)
     is_crisis: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_encrypted: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -103,6 +111,8 @@ class EventLog(Base):
     )
     channel: Mapped[str | None] = mapped_column(String(32))
     details: Mapped[str | None] = mapped_column(Text)
+    actor: Mapped[str | None] = mapped_column(String(64))
+    ip_address: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -110,3 +120,21 @@ class EventLog(Base):
     )
 
     user: Mapped["User | None"] = relationship(back_populates="events")
+
+
+class AdminAuditLog(Base):
+    """Audit des actions administrateur."""
+
+    __tablename__ = "admin_audit_logs"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    action: Mapped[str] = mapped_column(String(64), index=True)
+    actor: Mapped[str] = mapped_column(String(64))
+    target: Mapped[str | None] = mapped_column(String(128))
+    details: Mapped[str | None] = mapped_column(Text)
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        index=True,
+    )

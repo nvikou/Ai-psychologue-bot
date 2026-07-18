@@ -16,7 +16,6 @@ from aiogram.types import Message
 from api_client import BackendError
 from api_client import clear_history
 from api_client import send_chat
-from config import DISCLAIMER
 from config import ERROR_BACKEND
 from config import ERROR_GENERIC
 from config import ERROR_MESSAGE_TOO_LONG
@@ -24,6 +23,7 @@ from config import ERROR_OPENAI
 from config import ERROR_QUOTA
 from config import ERROR_RATE_LIMIT
 from config import MAX_MESSAGE_LENGTH
+from config import disclaimer_for
 from config import external_id
 
 logger = logging.getLogger(__name__)
@@ -72,16 +72,18 @@ async def set_menu_button(bot: Bot) -> None:
 @router.message(Command("start"))
 async def cmd_start(message: Message) -> None:
     uid = external_id(message.from_user.id)
+    lang = message.from_user.language_code if message.from_user else None
     try:
         await clear_history(uid)
     except BackendError:
         pass
-    await message.answer(DISCLAIMER, parse_mode="Markdown")
+    await message.answer(disclaimer_for(lang), parse_mode="Markdown")
 
 
 @router.message(Command("help"))
 async def cmd_help(message: Message) -> None:
-    await message.answer(DISCLAIMER, parse_mode="Markdown")
+    lang = message.from_user.language_code if message.from_user else None
+    await message.answer(disclaimer_for(lang), parse_mode="Markdown")
 
 
 @router.callback_query(F.data == "clear_memory")
@@ -119,6 +121,7 @@ async def handle_dialog(message: Message, bot: Bot) -> None:
             text,
             username=user.username,
             first_name=user.first_name,
+            language=user.language_code,
         )
     except BackendError:
         await message.answer(ERROR_BACKEND)
