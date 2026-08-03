@@ -13,6 +13,7 @@ from app.config import settings
 from app.models import EventLog
 from app.models import Message
 from app.models import User
+from app.services.session_phase import reset_session_phase
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ async def delete_user_data(
         delete(Message).where(Message.user_id == user.id)
     )
     await db.delete(user)
+    await reset_session_phase(external_id)
     logger.info("GDPR delete completed for external_id=%s", external_id)
     return True
 

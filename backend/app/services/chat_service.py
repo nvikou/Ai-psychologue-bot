@@ -22,8 +22,11 @@ from app.services.encryption_service import encrypt_text
 from app.services.i18n_service import crisis_text
 from app.services.i18n_service import normalize_language
 from app.services.openai_service import AIServiceError
-from app.services.openai_service import generate_reply
 from app.services.quota_service import QuotaService
+from app.services.session_phase import get_session_phase
+from app.services.session_phase import reset_session_phase
+from app.services.session_phase import set_session_phase
+from app.services.therapy_graph import run_therapy_turn
 
 logger = logging.getLogger(__name__)
 
@@ -152,6 +155,7 @@ async def clear_history(
     await db.execute(
         delete(Message).where(Message.user_id == user.id)
     )
+    await reset_session_phase(external_id)
     await log_event(
         db,
         "history_cleared",
@@ -260,13 +264,16 @@ async def process_chat(
         )
 
     history = await get_history(db, user.id)
+    phase, turn_count = await get_session_phase(payload.external_id)
 
     try:
-        reply = await generate_reply(
+        reply, next_phase, new_turns = await run_therapy_turn(
             history,
             text,
             language=user.language,
             goals=user.goals,
+            phase=phase,
+            turn_count=turn_count,
         )
     except AIServiceError:
         await log_event(
@@ -277,6 +284,11 @@ async def process_chat(
         )
         return ChatResponse(reply="", error_code="openai_error")
 
+    await set_session_phase(
+        payload.external_id,
+        next_phase,
+        new_turns,
+    )
     await save_message(db, user.id, "user", text)
     await save_message(db, user.id, "assistant", reply)
     await log_event(
@@ -284,6 +296,7 @@ async def process_chat(
         "message_sent",
         channel=payload.channel,
         user_id=user.id,
+        details=f"phase={phase}->next={next_phase}",
     )
 
     return ChatResponse(

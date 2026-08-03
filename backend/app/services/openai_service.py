@@ -28,16 +28,16 @@ def _get_client() -> AsyncOpenAI:
     return _client
 
 
-async def generate_reply(
+async def generate_reply_with_system(
     history: list[dict[str, str]],
     query: str,
-    language: str | None = None,
-    goals: str | None = None,
+    system_extra: str = "",
 ) -> str:
-    """Génère une réponse via OpenAI."""
-    system = settings.system_prompt + "\n" + language_instruction(language)
-    if goals:
-        system += f"\nUser goals/context: {goals}"
+    """Génère une réponse avec le prompt système + instructions."""
+    system = settings.system_prompt
+    if system_extra:
+        system = f"{system}\n\n{system_extra}"
+    system = f"{system}\n\n{settings.prompt_closing}"
 
     messages: list[dict[str, str]] = [
         {"role": "system", "content": system},
@@ -69,6 +69,56 @@ async def generate_reply(
     if not content:
         raise AIServiceError("empty_response")
     return content
+
+
+async def classify_text(
+    system: str,
+    user: str,
+    *,
+    temperature: float = 0.0,
+    max_tokens: int = 32,
+) -> str:
+    """Appel LLM court pour classification / routage."""
+    try:
+        response = await _get_client().chat.completions.create(
+            model=settings.openai_model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+    except RateLimitError as exc:
+        raise AIServiceError("rate_limit") from exc
+    except APITimeoutError as exc:
+        raise AIServiceError("timeout") from exc
+    except APIConnectionError as exc:
+        raise AIServiceError("connection") from exc
+    except APIStatusError as exc:
+        logger.error("OpenAI status=%s", exc.status_code)
+        raise AIServiceError("api_error") from exc
+    except Exception as exc:
+        logger.exception("OpenAI classify unexpected error")
+        raise AIServiceError("unknown") from exc
+
+    content = _extract_content(response)
+    if not content:
+        raise AIServiceError("empty_response")
+    return content.strip()
+
+
+async def generate_reply(
+    history: list[dict[str, str]],
+    query: str,
+    language: str | None = None,
+    goals: str | None = None,
+) -> str:
+    """Génère une réponse via OpenAI (compatibilité)."""
+    extra = language_instruction(language)
+    if goals:
+        extra += f"\nUser goals/context: {goals}"
+    return await generate_reply_with_system(history, query, extra)
 
 
 def _extract_content(response: Any) -> str | None:
